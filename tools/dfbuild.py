@@ -12,6 +12,7 @@ _license_exts = (".js", ".css") # extensions that should get a license
 _script_ele = "<script src=\"%s\"/>\n"
 _style_ele = "<link rel=\"stylesheet\" href=\"%s\"/>\n"
 _re_command = re.compile("""\s?<!--\s+command\s+(?P<command>\w+)\s+"?(?P<target>.*?)"?\s*(?:if\s+(?P<neg>not)?\s*(?P<cond>\S+?))?\s*-->""")
+_re_comment = re.compile("""\s*<!--.*-->\s*""")
 _re_script = re.compile("\s?<script +src=\"(?P<src>[^\"]*)\"/>")
 _re_css = re.compile("\s?<link +rel=\"stylesheet\" +href=\"(?P<href>[^\"]*)\"/>")
 _re_condition = re.compile("\s+if\s+(not)? (.*)")
@@ -45,6 +46,7 @@ def _process_directives(root, filepath, vars):
         match_cmd = _re_command.search(line)
         match_css = _re_css.search(line)
         match_js = _re_script.search(line)
+        match_comment = _re_comment.search(line)
         if match_cmd:
             cmd, target, neg, cond = match_cmd.groups()
             if cond: # check if this directive is conditional
@@ -78,6 +80,8 @@ def _process_directives(root, filepath, vars):
                 continue
             else: # some other unknown command! Let fall through so line is written
                 pass
+        elif match_comment:
+            continue
         elif match_css:
             if current_css_file:
                 known_files[current_css_file].append(match_css.group("href"))
@@ -137,12 +141,10 @@ def _clean_dir(root, exclude_dirs, exclude_files):
             os.rmdir(base)
 
 
-def _add_license(root, license_path):
+def _add_license(root, license_path="license.txt"):
     """
     Read a license from license_path and append it to all files under root
     whose extension is in _license_exts.
-    
-    FIXME: move this so it's not called from export perhaps?
     """
     if not os.path.isfile(license_path):
         return
@@ -213,17 +215,19 @@ def _localize_buildout(src, langdir):
     fp.close()
     
 
-    for lang, newscriptpath, newclientpath, path in [ (f[10:12], "script/dragonfly-"+f[10:12]+".js", "client-"+f[10:12]+".xml", os.path.join(langdir, f)) for f in os.listdir(langdir) if f.startswith("ui_string-") and f.endswith(".js") ]:
+    for lang, newscriptpath, newclientpath, path in [ (f[11:13], "script/dragonfly-"+f[11:13]+".js", "client-"+f[11:13]+".xml", os.path.join(langdir, f)) for f in os.listdir(langdir) if f.startswith("ui_strings-") and f.endswith(".js") ]:
         newscript = open(os.path.join(src,newscriptpath), "w")
         newclient = open(os.path.join(src, newclientpath), "w")
         langfile = open(path)
-        newscript.write(_concatcomment)
+        newscript.write(_concatcomment % path)
         newscript.write(langfile.read())
         newscript.write(script_data)
         newclient.write(clientdata.replace("dragonfly.js", "dragonfly" + "-" + lang +".js"))
         newclient.close()
         langfile.close()
         newscript.close()
+        
+    os.unlink(os.path.join(src, "script/dragonfly.js"))
         
 
 def make_archive(src, dst, in_subdir=True):
@@ -255,8 +259,7 @@ def make_archive(src, dst, in_subdir=True):
     
 
 def export(src, dst, process_directives=True, keywords={},
-           exclude_dirs=[], exclude_files=[], license=None,
-           directive_vars={}):
+           exclude_dirs=[], exclude_files=[], directive_vars={}):
     """
     Build from a directory to a directory.
     
@@ -285,9 +288,6 @@ def export(src, dst, process_directives=True, keywords={},
         
     # remove empty directories and stuff in the blacklist
     _clean_dir(tmpdir, exclude_dirs, exclude_files)
-        
-    if license and os.path.isfile(license):
-        _add_license(tmpdir, license)
         
     if keywords:
         _add_keywords(tmpdir, keywords)
@@ -319,10 +319,10 @@ Destination can be either a directory or a zip file"""
     parser = optparse.OptionParser(usage)
     parser.add_option("-c", "--no-concat", dest="concat",
                       default=True, action="store_false",
-                      help="don't concatenate script and css")
-    parser.add_option("-l", "--license", dest="license",
-                      default=None, type="string",
-                      help="append license file to js and css")
+                      help="Do NOT concatenate script and css")
+    parser.add_option("-l", "--no-license", dest="license",
+                      default=True, action="store_false",
+                      help="Do NOT append license file to js and css. (license is taken from $cwd/license.txt")
     parser.add_option("-k", "--keyword", dest="kwlist",
                       default=None, type="string", action="append",
                       help="A key/value pair. All instances of key will be replaced by value in all files. More than one key/value is allowed by adding more -k switches", metavar="key=value")
@@ -358,6 +358,9 @@ Destination can be either a directory or a zip file"""
         except ValueError:
             parser.error("""Could not parse keyword option: "%s" """ % kw)
     
+    if options.translate_build and not options.concat:
+        parser.error("""Can't translate when not concatenateing. use --no-concat OR --translate""")
+    
     if dst.endswith(".zip"): # export to a zip file
         if os.path.isfile(dst):
             if not options.delete_dst:
@@ -366,11 +369,16 @@ Destination can be either a directory or a zip file"""
                 os.unlink(dst)
         tempdir = tempfile.mkdtemp(".tmp", "dfbuild.")
         export(src, tempdir, process_directives=options.concat, exclude_dirs=exdirs,
-               keywords=keywords, license=options.license, directive_vars=dirvars)
+               keywords=keywords, directive_vars=dirvars)
         if options.translate_build:
-            _localize_buildout(dst, "src/ui-strings")
+            _localize_buildout(tempdir, "src/ui-strings")
+
+        if options.license:
+            _add_license(tempdir)
+
         make_archive(tempdir, dst)
         shutil.rmtree(tempdir)
+
     else: # export to a directory
         if os.path.isdir(dst):
             if not options.delete_dst:
@@ -379,9 +387,12 @@ Destination can be either a directory or a zip file"""
                 shutil.rmtree(dst)
 
         export(src, dst, process_directives=options.concat, exclude_dirs=exdirs,
-               keywords=keywords, license=options.license, directive_vars=dirvars)
+               keywords=keywords, directive_vars=dirvars)
         if options.translate_build:
             _localize_buildout(dst, "src/ui-strings")
+            
+        if options.license:
+            _add_license(dst)
 
 
 if __name__ == "__main__":
