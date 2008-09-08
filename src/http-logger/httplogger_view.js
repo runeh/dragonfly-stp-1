@@ -1,7 +1,7 @@
 /**
+ * @fileoverview
  * HTTP logger view code.
  * Defines views for request list, header info etc.
- *
  */
 
 /**
@@ -12,46 +12,137 @@
 cls.RequestListView = function(id, name, container_class)
 {
     var self = this;
-    
-
     this.isPaused = false;
-    this.selectedRequestId = null;
+    this.tableBodyEle = null;
+    this.lastIndex = null;
+    this.tbody = null;
+    var filter = null;
 
     this.createView = function(container)
     {
         var log = HTTPLoggerData.getLog();
-        container.innerHTML = "" +
-           this._createTable(log) +
-            "";
-    }
-    
-    this._createTable = function(log)
-    {
-        var strings = [];
-        var sel = HTTPLoggerData.getSelectedRequestId();
-        strings.push("<tr><th>#</th><th>host</th><th>path</th><th>method</th><th>status</th><th>time</th></tr>");
-        if (log.length)
+        if (this.lastIndex == null || log.length==0)
         {
-            for (var n=0, entry; entry=log[n]; n++)
+            container.clearAndRender(
+                ['table',
+                    ['thead',
+                        ['tr',
+                            ['th', "#"],
+                            ['th', "Host"],
+                            ['th', "Path"],
+                            ['th', "Method"],
+                            ['th', "Status"],
+                            ['th', "Time"]
+                        ]
+                    ],
+                    ['tbody'],
+                 'class', 'request-table'
+                ]
+            );
+            this.tableBodyEle = container.getElementsByTagName('tbody')[0];
+            this.lastIndex = 0;
+        }
+
+        if (!log.length) { return }
+        
+        var i = this.lastIndex;
+        var sel = HTTPLoggerData.getSelectedRequestId();
+        var req;
+        var tpls = [];
+        while (req=log[i++])
+        {
+            tpls.push(window.templates.request_list_row(i-1, req, sel));
+        }
+        this.tableBodyEle.render(tpls);
+        
+        this.lastIndex = i-1;
+
+        var last = HTTPLoggerData.getLastModifiedRequestId();
+        
+        for (var n=0, e; e=this.tableBodyEle.childNodes[n]; n++)
+        {
+            var rid = e.getAttribute('data-requestid');
+            if (rid == sel)
             {
-                var current = (sel && sel==entry.id)
-                strings.push(
-                   "<tr handler='request-list-select' data-requestid=\"" + entry.id + "\" class='" +(current ? "selected-request" : "") + "' >" +
-                        "<th>" + (n+1) + "</th>" +
-                        "<td>" + entry.request.headers.Host + "</td>" +
-                        "<td>" + entry.request.path + "</td>" +
-                        "<td>" + entry.request.method + "</td>" +
-                        "<td>" + (entry.response ? entry.response.status : "-") + "</td>" +
-                        "<td>" + (entry.response ? entry.response.time - entry.request.time : "-") + "</td>" +
-                    "</tr>"
-                )
+                e.addClass('selected-request');
             }
+            else
+            {
+                e.removeClass('selected-request');
+            }
+            
+            if (last == rid)
+            {
+                req = HTTPLoggerData.getRequestById(rid);
+                if (req.response)
+                {
+                    e.getElementsByClassName('status-cell')[0].textContent = req.response.status;
+                    e.getElementsByClassName('time-cell')[0].textContent = req.response.time - req.request.time;
+                }
+            }
+        }
+        if (filter)
+        {
+            applyFilter()
+        }
+    }
+
+    var clearFilter = function()
+    {
+        if (!self.tableBodyEle) { return }
+        var rows = self.tableBodyEle.childNodes;
+        for (var n=0, e; e=rows[n]; n++)
+        {
+            if (e.style.display == "none") { e.style.display = "" }
+        }
+    }
+
+    var applyFilter = function()
+    {
+        if (!self.tableBodyEle) { return }
+        var rows = self.tableBodyEle.childNodes;
+        for (var n=0, e; e=rows[n]; n++)
+        {
+            var r = HTTPLoggerData.getRequestById(e.getAttribute("data-requestid"));
+            var filtered = r.request.path.indexOf(filter)==-1 ;  //  fixme: last part should be enabled as soon as the duplicate IDs bug is fixed. &&  (r.request.headers["Host"] || "" ).indexOf(filter)==-1;
+            if (filtered)
+            {
+                e.style.display = "none";
+            }
+            else
+            {
+                e.style.display = "";
+            }
+        }
+        
+    }
+
+    this.setFilter = function(s)
+    {
+        if (filter && filter==s)
+        {
+            return;
+        } 
+        if (s=="")
+        {
+            filter = null;    
+            clearFilter()
         }
         else
         {
-            strings.push("<tr><th>0</th><td colspan='5'>No logged requests yet</td></tr>");
+            filter = s;
+            applyFilter();
         }
-        return "<table id='request-table'>\n" + strings.join("") + "</table>";
+    }
+
+    this.ondestroy = function()
+    {
+        this.lastIndex = null;
+    }
+
+    this.updateView = function(cont)
+    {
+        this.createView(cont);
     }
 
     this.init(id, name, container_class);
@@ -66,6 +157,7 @@ eventHandlers.click['request-list-select'] = function(event, target)
 {
     var sel = HTTPLoggerData.getSelectedRequestId();
     var id = target.getAttribute("data-requestid");
+
     if (sel && sel==id)
     {
         HTTPLoggerData.clearSelectedRequest();
@@ -74,7 +166,6 @@ eventHandlers.click['request-list-select'] = function(event, target)
     {
         HTTPLoggerData.setSelectedRequestId(id);
     }
-    //opera.postError("REQ ID: " + id)
 }
 
 
@@ -123,6 +214,15 @@ new Switches
 eventHandlers.click['clear-request-list'] = function(event, target)
 {
     HTTPLoggerData.clearLog();
+}
+
+eventHandlers.keyup['request-list-filter'] = function(event, target)
+{
+    if( event.keyCode == 13 )
+    {
+        window.views['request_list'].setFilter(target.value);
+    }
+    // fixme: Add delayed filtering here, so it'll work while typing
 }
 
 cls.RequestOverviewView = function(id, name, container_class)
@@ -311,4 +411,41 @@ cls.ResponseHeadersView = function(id, name, container_class)
 
 cls.ResponseHeadersView.prototype = ViewBase;
 new cls.ResponseHeadersView('response_info_headers', ui_strings.M_VIEW_LABEL_RESPONSE_HEADERS, 'scroll');
+
+
+cls.ResponseBodyView = function(id, name, container_class)
+{
+    this.createView = function(container)
+    {
+        var req = HTTPLoggerData.getSelectedRequest();
+
+        if (req && req.response)
+        {
+            container.clearAndRender(['div', [
+                                               ['h1', this.name],
+                                               "Not implemented yet, but it appears that we downloaded " + req.response.headers["Content-Length"] + " bytes."
+                                            ],
+                                      'class', 'padding'
+                                     ]
+                                    );
+        }
+        else
+        {
+            container.clearAndRender(['div', [
+                                                 ['h1', this.name],
+                                                 ui_strings.S_TEXT_NO_REQUEST_SELECTED,
+                                             ],
+                                      'class', 'padding'
+                                     ]
+                                    );
+        }
+    }
+    
+    this.init(id, name, container_class);
+}
+
+
+cls.ResponseBodyView.prototype = ViewBase;
+new cls.ResponseBodyView('response_info_body', ui_strings.M_VIEW_LABEL_RESPONSE_BODY, 'scroll');
+
 

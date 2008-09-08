@@ -11,24 +11,27 @@
  */
 window.HTTPLoggerData = new function()
 {
-    this.requestList = [];
-    this.requestMap = {};
-    this.selectedRequestId = null;
+    requestList = [];
+    requestMap = {};
+    selectedRequestId = null;
+    var lastModifiedRequestId = null;
 
-    this._views = ["request_list",
-                   "request_info_raw",
-                   "response_info_raw",
-                   "request_info_headers",
-                   "response_info_headers",
-                   "request_overview"
-                   ];
+
+    _views = [ "request_info_raw",
+               "response_info_raw",
+               "request_info_headers",
+               "response_info_headers",
+               "request_overview",
+               "response_info_body",
+               "request_list"
+             ];
 
     /**
      * Get the log as a list
      */
     this.getLog = function()
     {
-        return this.requestList;
+        return requestList;
     }
     
     /**
@@ -48,10 +51,10 @@ window.HTTPLoggerData = new function()
      */
     this.clearLog = function()
     {
-        this.requestList = [];
-        this.requestMap = {};
-        this.selectedRequestId = null;
-        this._updateViews();
+        requestList = [];
+        requestMap = {};
+        selectedRequestId = null;
+        _updateViews();
     }
 
     /**
@@ -64,9 +67,10 @@ window.HTTPLoggerData = new function()
                   response:null
                 }
 
-        this.requestList.push(r);
-        this.requestMap[r.id] = r;
-        this._updateViews();
+        requestList.push(r);
+        requestMap[r.id] = r;
+        lastModifiedRequestId = r.id;
+        _updateViews();
     }
     
     /**
@@ -75,11 +79,12 @@ window.HTTPLoggerData = new function()
      */
     this.addResponse = function(response)
     {
-        var r = this.requestMap[response["request-id"]];
+        var r = requestMap[response["request-id"]];
         if (r) {
             r.response = response;
+            lastModifiedRequestId = r.id;
+            _updateViews();
         }
-        this._updateViews();
     }
     
     /**
@@ -88,8 +93,8 @@ window.HTTPLoggerData = new function()
      */
     this.setSelectedRequestId = function(id)
     {
-        this.selectedRequestId = id;
-        this._updateViews();
+        selectedRequestId = id;
+        _updateViews();
     }
     
     /**
@@ -97,8 +102,8 @@ window.HTTPLoggerData = new function()
      */
     this.clearSelectedRequest = function()
     {
-        this.selectedRequestId = null;
-        this._updateViews();
+        selectedRequestId = null;
+        _updateViews();
     }
     
     /**
@@ -106,9 +111,9 @@ window.HTTPLoggerData = new function()
      */
     this.getSelectedRequest = function()
     {
-        if (this.selectedRequestId && this.selectedRequestId in this.requestMap)
+        if (selectedRequestId && selectedRequestId in requestMap)
         {
-            return this.requestMap[this.selectedRequestId];
+            return requestMap[selectedRequestId];
         }
         else
         {
@@ -121,15 +126,20 @@ window.HTTPLoggerData = new function()
      */
     this.getSelectedRequestId = function()
     {
-        return this.selectedRequestId;
+        return selectedRequestId;
+    }
+    
+    this.getLastModifiedRequestId = function()
+    {
+        return lastModifiedRequestId;
     }
     
     /**
      * Update all views that use this as a data source
      */
-    this._updateViews = function()
+    var _updateViews = function()
     {
-        for (var n=0, e; e=this._views[n]; n++)
+        for (var n=0, e; e=_views[n]; n++)
         {
             if (e in window.views) { window.views[e].update() }
         }
