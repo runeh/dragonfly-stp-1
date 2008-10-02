@@ -72,6 +72,9 @@
  *     <dt>resize</dt>
  *     <dd>Payload: None</dd>
  *
+ *     <dt>reset-state</dt>
+ *     <dd>the application cuts the current connection and aits for a new one. Payload: None</dd>
+ *
  * </dl>
  *  
  */
