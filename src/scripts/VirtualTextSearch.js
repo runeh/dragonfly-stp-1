@@ -25,6 +25,7 @@ var VirtualTextSearch = function()
   __length = 0,
   __hit = null,
   __input = null,
+  __last_match_cursor = 0,
  
   search_node = function(node) 
   {
@@ -125,10 +126,15 @@ var VirtualTextSearch = function()
             line_matches[line_matches.length] = line_cur;
             line_offsets[line_offsets.length] = pos - line_arr[line_cur - 1];
           }
-          
+          if( __last_match_cursor )
+          {
+            if( __last_match_cursor < __script.match_length )
+            {
+              __script.match_cursor = __last_match_cursor;
+            }
+            __last_match_cursor = 0;
+          }
           self.highlight(true, new_search_therm);
-          
-
         }
       }
       else
@@ -245,6 +251,9 @@ var VirtualTextSearch = function()
     {
       __input.value = search_therm;
       __input.parentNode.firstChild.textContent = '';
+      var new_search_therm = search_therm;
+      search_therm = '';
+      this.search(new_search_therm);
     }
   }
   
@@ -257,6 +266,7 @@ var VirtualTextSearch = function()
 
   this.cleanup = function()
   {
+    __last_match_cursor = __script && __script.match_cursor || 0;
     cursor = -1;
     self.clearScriptContext();
     container = source_container = source_container_parentNode = __hit = __input = null;
