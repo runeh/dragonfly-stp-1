@@ -18,6 +18,10 @@ var Debug = function(id, name, container_class)
   var getIndent = function(n)
   {
     var ret = '';
+    if(n < 1)
+    {
+      return ret;
+    }
     while(n--) ret += indent;
     return ret;
   }
@@ -177,7 +181,7 @@ var Debug = function(id, name, container_class)
         indentCount--;
         if( match[1] )
         {
-          /*
+          /*          
           if( match[1].length > 20  )
           {
             ret +=  match[1].slice(0, 20) +"..."+ match[2];
@@ -203,7 +207,9 @@ var Debug = function(id, name, container_class)
         ret += '\n' + getIndent(indentCount) + match[0];
         indentCount++;
       }
+      
     }
+    
     self.output(ret);
   }
 
@@ -248,6 +254,10 @@ Debug.init = function()
       (
         ['div', 
           ['div',
+            ['input', 
+              'type', 'button', 
+              'value', 'spotlight', 
+              'onclick', "this.parentNode.parentNode.getElementsByTagName('textarea')[0].value='<spotlight-objects>\\n  <spotlight-object>\\n    <object-id>xx</object-id>\\n    <scroll-into-view>1</scroll-into-view>\\n    <box>\\n      <box-type>0</box-type>\\n      <fill-color>16711858</fill-color>\\n      <frame-color>4278190335</frame-color>\\n      <grid-color>0</grid-color>\\n    </box> \\n  </spotlight-object>\\n</spotlight-objects>';"],
             ['input', 
               'type', 'button', 
               'value', 'eval', 
