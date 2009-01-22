@@ -206,7 +206,9 @@ new Settings
           ['input',
             'type', 'number',
             'value', this.get('port'),
-            'disabled', !this.get('debug-remote')
+            'disabled', !this.get('debug-remote'),
+            'handler', 'change-port-number-remote-debug',
+            'current-port', this.get('port').toString()
           ]
         ],
         ['input',
@@ -219,6 +221,11 @@ new Settings
     ];
   }
 );
+
+eventHandlers.change['change-port-number-remote-debug'] = function(event, target)
+{
+  target.parentNode.nextSibling.disabled = target.getAttribute('current-port') == target.value;
+}
 
 eventHandlers.change['toggle-remote-debug'] = function(event, target)
 {
