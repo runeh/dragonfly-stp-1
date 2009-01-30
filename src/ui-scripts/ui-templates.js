@@ -269,7 +269,8 @@
         }
         else
         {
-          opera.postError('failed in ui-templates checkboxes '+ arr + ' ' +setting.view_id);
+          opera.postError(ui_strings.DRAGONFLY_INFO_MESSAGE + 
+            'failed in ui-templates checkboxes '+ arr + ' ' +setting.view_id);
         }
       }
     }
