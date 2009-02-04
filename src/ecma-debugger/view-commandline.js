@@ -28,6 +28,7 @@ cls.CommandLineView = function(id, name, container_class, html, default_handler)
   var console_output_data = [];
 
   var is_debug = false;
+  var toolbar_visibility = true;
 
   var cons_out_render_return_val = function(entry)
   {
@@ -561,6 +562,7 @@ cls.CommandLineView = function(id, name, container_class, html, default_handler)
   this.createView = function(container)
   {
     is_debug = ini.debug;
+    checkToolbarVisibility();
     container.innerHTML = markup;
     container.scrollTop = container.scrollHeight;
     __container = container;
@@ -599,8 +601,18 @@ cls.CommandLineView = function(id, name, container_class, html, default_handler)
     }
   }
 
+  var checkToolbarVisibility = function(msg)
+  { 
+    var isMultiRuntime = host_tabs.isMultiRuntime();
+    if( toolbar_visibility != isMultiRuntime )
+    {
+      topCell.setTooolbarVisibility('command_line', toolbar_visibility = isMultiRuntime );
+    }
+  }
+
   messages.addListener('frame-selected', onFrameSelected);
   messages.addListener('console-message', onConsoleMessage);
+  messages.addListener('active-tab', checkToolbarVisibility);
 
   this.init(id, name, container_class, html, default_handler);
 
@@ -640,8 +652,6 @@ cls.CndRtSelect = function(id, class_name)
 {
 
   var selected_value = "";
-
-  var toolbar_visibility = true;
 
   this.getSelectedOptionText = function()
   {
@@ -696,16 +706,6 @@ cls.CndRtSelect = function(id, class_name)
     return true;
   }
 
-  // this.updateElement
-
-  var onActiveTab = function(msg)
-  { 
-    if( toolbar_visibility != ( msg.activeTab.length > 1 ) )
-    {
-      topCell.setTooolbarVisibility('command_line', toolbar_visibility = ( msg.activeTab.length > 1 ) );
-    }
-  }
-  messages.addListener('active-tab', onActiveTab);
   this.init(id, class_name);
 }
 
