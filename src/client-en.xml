@@ -8,6 +8,8 @@ if( navigator.userAgent.indexOf('Macintosh') != -1 && Number(opera.buildNumber()
 <script><![CDATA[
 (function()
 {
+  // this code was added 10.02.2009
+  // it can be removed after some time
   var 
   lang_dict = 
   {
@@ -71,7 +73,7 @@ if( navigator.userAgent.indexOf('Macintosh') != -1 && Number(opera.buildNumber()
   ui_lang = getCookie('ui-lang'),
   lang_check = getCookie('lang-check');
 
-  if( ui_lang && ui_lang != lang && !lang_check )
+  if( !lang_check && ui_lang && ui_lang != lang )
   {
     setCookie('lang-check', '1');
     if( confirm('Would you like to switch to your default user language?') )
