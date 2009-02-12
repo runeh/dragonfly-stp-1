@@ -135,9 +135,30 @@ new Settings
     [
       "show-only-normal-and-gadget-type-windows"
     ]
+  },
+  // template
+  function(setting)
+  {
+    return [
+      ['hr'],
+      ['setting-composite',
+        'User Interface Language' + ': ',
+        [
+          'select',
+          templates.uiLangOptions(),
+          'handler', 'set-ui-language'
+        ]
+      ]
+    ];
   }
-
 );
+
+eventHandlers.change['set-ui-language'] = function(event)
+{
+  helpers.setCookie('ui-lang', event.target.value);
+  helpers.setCookie('ui-lang-set', '1');
+  location.reload();
+}
   
 /**
   * @constructor 
