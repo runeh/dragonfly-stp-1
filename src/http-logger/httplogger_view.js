@@ -10,21 +10,25 @@
   * This view implements update chocking. It will not do the update more often
   * than every minUpdateInterval milliseconds
   */
-
 cls.RequestListView = function(id, name, container_class)
 {
     var self = this;
 
     // The list will never be updated more often than this:
-    this.minUpdateInterval = 500; // in milliseconds.
-
-    var filter = null;
+    this.minUpdateInterval = 350; // in milliseconds.
     var lastUpdateTime = null;
-    var updateTimer = null;
-    var nextRenderedIndex = null;
-    var keyEntryId = null;
-    var expandedItems = [];
-    
+    var updateTimer = null; // timer id so we can cancel a timeout
+    var nextToRendereIndex = null;  // index in log of the next element to render
+    var keyEntryId = null; // first entry of log. If log[0] is different, view is invalid
+    var expandedItems = []; // IDs of items that are expanded
+    var tableBodyEle = null;
+
+    /**
+     *  Called by the framework through update()
+     *  Check if we should redraw the view or not. If we shall, call
+     *  doCreateView. The reason for not doing so is if there is less
+     *  than minUpdateInterval millis since the last time we did.
+     **/
     this.createView = function(container)
     {
         if (lastUpdateTime &&
@@ -33,7 +37,7 @@ cls.RequestListView = function(id, name, container_class)
             // later if it isn't allready so.
             if (!updateTimer) {
                 updateTimer = window.setTimeout(
-                        function() { self.createView(container)},
+                        function() { self.createView(container) },
                         this.minUpdateInterval);
             }
             return;
@@ -51,10 +55,15 @@ cls.RequestListView = function(id, name, container_class)
      * Check if the current view represents reality. This is
      * done by checking the first element in the log. Its id needs to be the
      * same as keyEntryId
-     *
      */
     this.viewIsValid = function(log)
     {
+        return false;
+
+        // The invalidation code is currently disabled because there is now
+        // no chance of a ginourmous list of requests. Hence this optimization
+        // is probably not needed
+
         if (log.length && log[0].id==keyEntryId) {
             return true;
         } else {
@@ -63,39 +72,89 @@ cls.RequestListView = function(id, name, container_class)
         }
     }
 
+    /**
+     * Do the actual rendering of the request table, including expanded and
+     * collapsed details pages.
+     */
     this.doCreateView = function(container)
     {
-
         var log = HTTPLoggerData.getLog();
+
         if (!this.viewIsValid(log)) {
-            container.clearAndRender(window.templates.request_list_header());
-            nextRenderedIndex = 0;
+            container.clearAndRender(['table',['tbody'], 'class', 'request-table']);
+            nextToRendereIndex = 0;
         }
-        var tableBodyEle = container.getElementsByTagName('tbody')[0];
+        tableBodyEle = container.getElementsByTagName('tbody')[0];
         
         // partial function invocation that closes over expandedItems
         var fun = function(e) {
             return window.templates.request_list_row(e, expandedItems);
         }
         
-        var tpls = log.slice(nextRenderedIndex).map(fun);
+        var tpls = log.slice(nextToRendereIndex).map(fun);
 
         tableBodyEle.render(tpls);
-        nextRenderedIndex = log.length;
+        nextToRendereIndex = log.length;
     }
     
+    /**
+     * Collapse the detail view of an entry in the log.
+     * Does not invalidate the view and re-render the table.
+     * It's fairly slow if the entry is far down in the log though.
+     */
+    this.collapseEntry = function(id)
+    {
+        if (!tableBodyEle) { return }
+        for (var n=0,e; e=tableBodyEle.childNodes[n]; n++)
+        {
+            if (e.getAttribute('data-requestid') == id)
+            {
+                e.className = e.className.replace("expanded", "collapsed");
+                tableBodyEle.removeChild(e.nextSibling);
+                return
+            }
+        }
+    }
+    
+    /**
+     * Show the detail view of an entry in the log.
+     * Does not invalidate the view and re-render the table.
+     * It's fairly slow if the entry is far down in the log though.
+     */
+    this.expandEntry = function(id) {
+        if (!tableBodyEle) { return }
+        for (var n=0,e; e=tableBodyEle.childNodes[n]; n++)
+        {
+            if (e.getAttribute('data-requestid') == id)
+            {
+                var req = HTTPLoggerData.getRequestById(id);
+                var tpl = window.templates.request_details_box(req);
+                var ele = document.render(tpl);
+                if (e.nextSibling) {
+                    tableBodyEle.insertBefore(ele, e.nextSibling);
+                }
+                else {
+                    tableBodyEle.appendChild(ele);
+                }
+                e.className = e.className.replace("collapsed", "expanded");
+                return; // or loop forever since you just made list longer.
+            }
+        }
+    }
+    
+    /**
+     * Called to toggle request with id. If it's expanded it gets collapsed
+     * and vice-versa
+     */
     this.toggleDetails = function(id)
     {
-        // fixme: this, and doCreateView should just wile all entries after
-        // the one we want to expand and set nextRenderedIndex to the one
-        // that got expanded.
         if (expandedItems.indexOf(id)==-1) {
             expandedItems.push(id);
+            this.expandEntry(id);
         } else {
             expandedItems.splice(expandedItems.indexOf(id), 1);
+            this.collapseEntry(id);
         }
-        keyEntryId = null;
-        lastUpdateTime = 0;
     }
 
     this.ondestroy = function()
@@ -109,46 +168,10 @@ cls.RequestListView = function(id, name, container_class)
 cls.RequestListView.prototype = ViewBase;
 new cls.RequestListView('request_list', ui_strings.M_VIEW_LABEL_REQUEST_LOG, 'scroll');
 
-
 eventHandlers.click['request-list-expand-collapse'] = function(event, target)
 {
     window.views['request_list'].toggleDetails(target.getAttribute("data-requestid"));
-    window.views['request_list'].update();
 }
-
-
-eventHandlers.click['request-list-select'] = function(event, target)
-{
-    var sel = HTTPLoggerData.getSelectedRequestId();
-    var id = target.getAttribute("data-requestid");
-
-    if (sel && sel==id)
-    {
-        HTTPLoggerData.clearSelectedRequest();
-    }
-    else
-    {
-        HTTPLoggerData.setSelectedRequestId(id);
-    }
-}
-
-
-new Settings
-(
-  // id
-  'request_list', 
-  // kel-value map
-  {
-    'pause-resume-request-list-update': true
-  }, 
-  // key-label map
-  {
-    'pause-resume-request-list-update':  "#STR Pause/resume"
-  },
-  // settings map
-  {
-  }
-);
 
 new ToolbarConfig
 (
@@ -158,259 +181,10 @@ new ToolbarConfig
         handler: 'clear-request-list',
         title: ui_strings.S_BUTTON_CLEAR_REQUEST_LOG
       }
-    ],
-    [
-      {
-        handler: 'request-list-filter',
-        title: "#STR filter request"
-      }
     ]
 );
-
-new Switches
-(
-  'request_list',
-  [
-    'pause-resume-request-list-update'
-  ]
-)
 
 eventHandlers.click['clear-request-list'] = function(event, target)
 {
     HTTPLoggerData.clearLog();
 }
-
-eventHandlers.keyup['request-list-filter'] = function(event, target)
-{
-    if( event.keyCode == 13 )
-    {
-        window.views['request_list'].setFilter(target.value);
-    }
-    // fixme: Add delayed filtering here, so it'll work while typing
-}
-
-cls.RequestOverviewView = function(id, name, container_class)
-{
-    var self = this;
-
-    this.createView = function(container)
-    {
-        var req = HTTPLoggerData.getSelectedRequest();
-        if (req)
-        {
-            container.clearAndRender(['div', [
-                                               ['h1', this.name],
-                                               window.templates.request_summary(req)
-                                            ],
-                                      'class', 'padding'
-                                     ]
-                                    );
-        }
-        else
-        {
-            container.clearAndRender(['div', [
-                                                 ['h1', this.name],
-                                                 ui_strings.S_TEXT_NO_REQUEST_SELECTED,
-                                             ],
-                                      'class', 'padding'
-                                     ]
-                                    );
-            
-        }
-    }
-    
-    this.init(id, name, container_class);
-
-}
-
-cls.RequestOverviewView .prototype = ViewBase;
-new cls.RequestOverviewView ('request_overview', ui_strings.M_VIEW_LABEL_REQUEST_INFO, 'scroll');
-
-cls.RequestRawView = function(id, name, container_class)
-{
-    var self = this;
-
-    this.createView = function(container)
-    {
-        var req = HTTPLoggerData.getSelectedRequest();
-        if (req)
-        {
-            container.clearAndRender(['div', [
-                                                ['h1', this.name],
-                                                ['code',
-                                                    ['pre',
-                                                        req.request.raw
-                                                    ]
-                                                ]
-                                            ],
-                                     'class', 'padding'
-                                    ]
-                                    );
-        }
-        else
-        {
-            container.clearAndRender(['div', [
-                                                 ['h1', this.name],
-                                                 ui_strings.S_TEXT_NO_REQUEST_SELECTED,
-                                             ],
-                                      'class', 'padding'
-                                     ]
-                                    );
-        }
-    }
-    
-    this.init(id, name, container_class);
-}
-
-cls.RequestRawView.prototype = ViewBase;
-new cls.RequestRawView('request_info_raw', ui_strings.M_VIEW_LABEL_RAW_REQUEST_INFO, 'scroll');
-
-
-cls.ResponseRawView = function(id, name, container_class)
-{
-    var self = this;
-
-    this.createView = function(container)
-    {
-        var req = HTTPLoggerData.getSelectedRequest();
-        if (req)
-        {
-            container.clearAndRender(['div', [
-                                                ['h1', this.name],
-                                                ['code',
-                                                    ['pre',
-                                                        req.response.raw
-                                                    ]
-                                                ]
-                                            ],
-                                     'class', 'padding'
-                                    ]
-                                    );
-        }
-        else
-        {
-            container.clearAndRender(['div', [
-                                                 ['h1', this.name],
-                                                 ui_strings.S_TEXT_NO_REQUEST_SELECTED,
-                                             ],
-                                      'class', 'padding'
-                                     ]
-                                    );
-        }
-    }
-    
-    this.init(id, name, container_class);
-}
-
-
-cls.ResponseRawView.prototype = ViewBase;
-new cls.ResponseRawView('response_info_raw', ui_strings.M_VIEW_LABEL_RAW_RESPONSE_INFO, 'scroll');
-
-
-cls.RequestHeadersView = function(id, name, container_class)
-{
-    this.createView = function(container)
-    {
-        var req = HTTPLoggerData.getSelectedRequest();
-
-        if (req)
-        {
-            container.clearAndRender(['div', [
-                                               ['h1', this.name],
-                                               window.templates.header_definition_list(req.request.headers),
-                                            ],
-                                      'class', 'padding'
-                                     ]
-                                    );
-        }
-        else
-        {
-            container.clearAndRender(['div', [
-                                                 ['h1', this.name],
-                                                 ui_strings.S_TEXT_NO_REQUEST_SELECTED,
-                                             ],
-                                      'class', 'padding'
-                                     ]
-                                    );
-        }
-    }
-    
-    this.init(id, name, container_class);
-}
-
-
-cls.RequestHeadersView.prototype = ViewBase;
-new cls.RequestHeadersView('request_info_headers', ui_strings.M_VIEW_LABEL_REQUEST_HEADERS, 'scroll');
-
-cls.ResponseHeadersView = function(id, name, container_class)
-{
-    this.createView = function(container)
-    {
-        var req = HTTPLoggerData.getSelectedRequest();
-
-        if (req && req.response)
-        {
-            container.clearAndRender(['div', [
-                                               ['h1', this.name],
-                                               window.templates.header_definition_list(req.response.headers),
-                                            ],
-                                      'class', 'padding'
-                                     ]
-                                    );
-        }
-        else
-        {
-            container.clearAndRender(['div', [
-                                                 ['h1', this.name],
-                                                 ui_strings.S_TEXT_NO_REQUEST_SELECTED,
-                                             ],
-                                      'class', 'padding'
-                                     ]
-                                    );
-        }
-    }
-    
-    this.init(id, name, container_class);
-}
-
-
-cls.ResponseHeadersView.prototype = ViewBase;
-new cls.ResponseHeadersView('response_info_headers', ui_strings.M_VIEW_LABEL_RESPONSE_HEADERS, 'scroll');
-
-
-cls.ResponseBodyView = function(id, name, container_class)
-{
-    this.createView = function(container)
-    {
-        var req = HTTPLoggerData.getSelectedRequest();
-
-        if (req && req.response)
-        {
-            container.clearAndRender(['div', [
-                                               ['h1', this.name],
-                                               "Request body inspection not supported yet."
-                                            ],
-                                      'class', 'padding'
-                                     ]
-                                    );
-        }
-        else
-        {
-            container.clearAndRender(['div', [
-                                                 ['h1', this.name],
-                                                 ui_strings.S_TEXT_NO_REQUEST_SELECTED,
-                                             ],
-                                      'class', 'padding'
-                                     ]
-                                    );
-        }
-    }
-    
-    this.init(id, name, container_class);
-}
-
-
-cls.ResponseBodyView.prototype = ViewBase;
-new cls.ResponseBodyView('response_info_body', ui_strings.M_VIEW_LABEL_RESPONSE_BODY, 'scroll');
-
-

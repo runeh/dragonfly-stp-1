@@ -51,6 +51,25 @@ window.templates = window.templates || ( window.templates = {} );
     return dl;
 }
 
+
+window.templates.sanitize_url = function(req)
+{
+    var s = req.request.path;
+
+    if (s=="" || s=="/") {
+        return req.request.host;
+    }
+
+    var pos = s.lastIndexOf("/");
+    if (pos == s.length-1) { //  only query part
+        return s
+
+    }
+    else {
+        return s.slice(pos+1);
+    }
+}
+
 /**
  * Renders a single row of request data in the request list
  */
@@ -60,21 +79,21 @@ window.templates.request_list_row = function(r, expandList)
 
     var a = [
         [ 'tr',
-            ['th', ["button", "", "type", "button",
+            ['td', ["button", "", "type", "button",
                                   "handler", "request-list-expand-collapse",
                                   'data-requestid', r.id,
-                                  "class", "expand-collapse " + (expanded ? "expanded" : "collapsed") ]],
-            ['th', ["label", "",
+                                  "class", "expand-collapse"]],
+            ['td', ["label", "",
                     "class", http_map_mime_to_type(http_get_mime_from_extension(r.request.path))]
             ],
-            ['td', r.request.headers["Host" || "?" ] ],
-            ['td', r.request.path],
             ['td', r.request.method],
+            ['td', templates.sanitize_url(r) ],
             ['td', (r.response ? r.response.status : "-"), 'class', 'status-cell'],
-            ['td', (r.duration != null ? r.duration : "-"), 'class', 'time-cell'],
+            ['td', (r.response ? r.response.reason: "-"), 'class', 'reason-cell'],
             'data-requestid', r.id,
-            'handler', 'request-list-select',
-            'class', 'typeicon mime-' + http_map_mime_to_type(http_get_mime_from_extension(r.request.path))
+            'class', 'typeicon mime-' + 
+                    http_map_mime_to_type(http_get_mime_from_extension(r.request.path)) +
+                    (expanded ? " expanded" : " collapsed")
         ],
     ];
     
@@ -170,23 +189,4 @@ window.templates.method_spec_link = function(req)
         }
     }
     return ""
-}
-
-window.templates.request_list_header = function()
-{
-    return ['table',
-                ['thead',
-                    ['tr',
-                        ['th', ""],
-                        ['th', ""],
-                        ['th', "Host"],
-                        ['th', "Path"],
-                        ['th', "Method"],
-                        ['th', "Status"],
-                        ['th', "Time"]
-                    ]
-                ],
-                ['tbody'],
-             'class', 'request-table'
-            ];
 }
