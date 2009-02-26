@@ -63,6 +63,12 @@
     padding: 0;
 }
 
+.request-table tr.collapsed:hover, .request-table tr.expanded:hover {
+    background-color: #ffeeee;
+    cursor: pointer;
+}
+
+
 
 .request-table button.expand-collapse {
   height: 15px;
