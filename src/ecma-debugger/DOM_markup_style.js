@@ -126,7 +126,6 @@ var DOM_markup_style = function(id, name, container_class)
 
   this.createView = function(container)
   {
-
     if( container.hasClass('tree-style') )
     {
       container.removeClass('tree-style');
