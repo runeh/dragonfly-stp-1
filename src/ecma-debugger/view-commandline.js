@@ -394,7 +394,6 @@ cls.CommandLineView = function(id, name, container_class, html, default_handler)
 
     var get_scope = function(path, old_args)
     {
-      
       var 
       rt_id = runtimes.getSelectedRuntimeId(),
       frame_id = '', 
@@ -468,8 +467,9 @@ cls.CommandLineView = function(id, name, container_class, html, default_handler)
       }
       else
       {
-         opera.postError(ui_strings.DRAGONFLY_INFO_MESSAGE +
-           "getting scope failed in autocomplete view-commandline");
+        str_input = current_path = '';
+        opera.postError(ui_strings.DRAGONFLY_INFO_MESSAGE +
+          "getting scope failed in autocomplete view-commandline");
       }
     }
 
