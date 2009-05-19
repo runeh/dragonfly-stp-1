@@ -46,6 +46,8 @@ var stop_at = new function()
     return __stopAtId++;
   }
 
+  var _is_initial_settings_set = false;
+
   this.getStopAts = function()
   {
     return stop_at_user_settings; // should be  copied
@@ -115,7 +117,7 @@ var stop_at = new function()
       {
         fn_name : is_all_frames && i == _frames_length - 1 
                   ? 'global scope' 
-                  : frame.getNodeData('function-name'),
+                  : frame.getNodeData('function-name') || 'anonymous',
         line : frame.getNodeData('line-number'), 
         script_id : frame.getNodeData('script-id'),
         argument_id : frame.getNodeData('argument-object'),
@@ -151,15 +153,19 @@ var stop_at = new function()
 
   this.setInitialSettings = function()
   {
-    var config_arr = [], prop = '';
-    for ( prop in stop_at_settings )
+    if(!_is_initial_settings_set )
     {
-      config_arr[config_arr.length] = prop;
-      config_arr[config_arr.length] = 
-        ( ( stop_at_user_settings[prop] = settings['js_source'].get(prop) ) 
-          || stop_at_settings[prop] ) && 'yes' || 'no';
+      var config_arr = [], prop = '';
+      for ( prop in stop_at_settings )
+      {
+        config_arr[config_arr.length] = prop;
+        config_arr[config_arr.length] = 
+          ( ( stop_at_user_settings[prop] = settings['js_source'].get(prop) ) 
+            || stop_at_settings[prop] ) && 'yes' || 'no';
+      }
+      services['ecmascript-debugger'].setConfiguration.apply(services['ecmascript-debugger'], config_arr);
+      _is_initial_settings_set = true;
     }
-    services['ecmascript-debugger'].setConfiguration.apply(services['ecmascript-debugger'], config_arr);
   }
 
   this.__continue = function (mode) //
