@@ -124,7 +124,8 @@
       }
       else
       {
-        style += "top: " + bottom + "px; max-height: " + max_height + "px;";
+        style += "top: " + bottom + "px;";
+        modal_box.firstElementChild.style.cssText = "max-height: " + max_height + "px;"
       };
       if( modal_box_width > max_width && modal_box_width < max_width_2 )
       {
@@ -578,7 +579,7 @@ var CstSelectWithActionBase = function(id, class_name, type)
   */
   this._action_entries = [];
 
-  var action_entry = function(action)
+  this._action_entry = function(action)
   {
     return       [
       "cst-option",
@@ -589,12 +590,10 @@ var CstSelectWithActionBase = function(id, class_name, type)
     ]
   }
 
-
-
   this.templateOptionList = function(select_obj)
   {
     var 
-    ret = select_obj._action_entries.map(action_entry),
+    ret = select_obj._action_entries.map(this._action_entry),
     opt_list = select_obj._option_list,
     opt = null, 
     i = 0;
@@ -616,7 +615,6 @@ var CstSelectWithActionBase = function(id, class_name, type)
     }
     return ret;
   }
-
 }
 
 CstSelectWithActionBase.prototype = 
