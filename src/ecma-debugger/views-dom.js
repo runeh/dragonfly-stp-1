@@ -653,6 +653,16 @@ new ToolbarConfig
   ]
 )
 
+
+new CstSelectToolbarSettings(
+  'dom', 
+  [
+    'show-comments',
+    'show-whitespace-nodes',
+    'dom-tree-style'
+  ]
+);
+
 new Switches
 (
   'dom',
@@ -660,9 +670,6 @@ new Switches
     'find-with-click',
     'highlight-on-hover',
     'update-on-dom-node-inserted',
-    'show-comments',
-    'show-whitespace-nodes',
-    'dom-tree-style',
     'lock-selecked-elements'
   ]
 )
