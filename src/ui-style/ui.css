@@ -975,7 +975,7 @@ button[handler="documentation"]:before
 {
   background-image: url('../ui-images/btn-documentation.png');
 }
-button.clear-log:before,
+button.clear-log:before
 {
   background-image: url('../ui-images/btn-delete.png');
 }

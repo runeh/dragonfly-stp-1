@@ -49,8 +49,45 @@ var dom_data = new function()
     return i < view_ids.length;
   }
 
+  var _is_element_selected_checked = false;
 
+  var get_selected_element = function(rt_id)
+  {
+    var tag = tagManager.setCB(self, self.on_element_selected, [rt_id, true]);
+    window.services['ecmascript-debugger'].requestGetSelectedObject(tag);
+  }
 
+  this.on_element_selected = function(status, message, rt_id, show_initial_view)
+  {
+    const
+    OBJECT_ID = 0,
+    WINDOW_ID = 1,
+    RUNTIME_ID = 2;
+
+    _is_element_selected_checked = true;
+
+    if(message[OBJECT_ID])
+    {
+      if(!window.views.dom.isvisible())
+      {
+        window.topCell.showView('dom');
+      }
+      // TODO this will fail on inspecting a popup which is part of the debug context
+      if(message[WINDOW_ID] == window.window_manager_data.debug_context)
+      {
+        clickHandlerHost(obj);
+      }
+      else
+      {
+        _is_element_selected_checked = false;
+        window.window_manager_data.setDebugContext(message[WINDOW_ID]);
+      }
+    }
+    else if (show_initial_view)
+    {
+      getInitialView(rt_id);
+    }
+  }
 
   var onActiveTab = function(msg)
   {
@@ -130,9 +167,22 @@ var dom_data = new function()
   var handleGetDOM = function(status, message, rt_id, obj_id)
   {
     const NODE_LIST = 0;
+    var view_id = '', i = 0;
 
     data = message[NODE_LIST];
     mime = set_mime();
+    
+    // handle text nodes as target in get selected element
+    for( i = 0; data[i] && data[i][ID] != obj_id; i++);
+    while(data[i] && data[i][TYPE] != 1) 
+    {
+      i--;
+    }
+    if(data[i] && data[i][ID] != obj_id)
+    {
+      current_target = obj_id = data[i][ID];
+    }
+
     if( rt_id != data_runtime_id || __next_rt_id )
     {
       data_runtime_id = rt_id;
@@ -140,8 +190,8 @@ var dom_data = new function()
       window['cst-selects']['document-select'].updateElement();
       __next_rt_id = '';
     }
-    var view_id = '', i = 0;
-    for( ; view_id = view_ids[i]; i++)
+    
+    for( i = 0; view_id = view_ids[i]; i++)
     {
       views[view_id].update();
       views[view_id].scrollTargetIntoView();
@@ -205,48 +255,54 @@ var dom_data = new function()
     }
   }
 
+
   var onShowView = function(msg)
   {
     
     var msg_id = msg.id, id = '', i = 0;
-    for( ; ( id = view_ids[i] ) && id != msg_id; i++);
-    if( id )
+    for( ; (id = view_ids[i]) && id != msg_id; i++);
+    if (id)
     {
-      
-      //if( !data.length )
-     // {
-        if(activeWindow.length)
+      if(activeWindow.length)
+      {
+        // in the case there is no runtime selected 
+        // set the top window to the active runtime
+        if (!data_runtime_id)
         {
-          // in the case there is no runtime selected 
-          // set the top window to the active runtime
-          if( !data_runtime_id )
-          {
-            data_runtime_id = activeWindow[0];
-          }
-          if(settings[settings_id].get('find-with-click'))
-          {
-            host_tabs.activeTab.addEventListener('click', clickHandlerHost);
-          }
-          if(settings[settings_id].get('highlight-on-hover'))
-          {
-            host_tabs.activeTab.addEventListener('mouseover', spotlight);
-          } 
-          if(settings[settings_id].get('update-on-dom-node-inserted'))
-          {
-            host_tabs.activeTab.addEventListener('DOMNodeRemoved', domNodeRemovedHandler);
-          }
-          if( !data.length )
+          data_runtime_id = activeWindow[0];
+        }
+        if(settings[settings_id].get('find-with-click'))
+        {
+          host_tabs.activeTab.addEventListener('click', clickHandlerHost);
+        }
+        if(settings[settings_id].get('highlight-on-hover'))
+        {
+          host_tabs.activeTab.addEventListener('mouseover', spotlight);
+        } 
+        if(settings[settings_id].get('update-on-dom-node-inserted'))
+        {
+          host_tabs.activeTab.addEventListener('DOMNodeRemoved', domNodeRemovedHandler);
+        }
+        if(!data.length)
+        {
+          if(_is_element_selected_checked)
           {
             getInitialView(data_runtime_id);
           }
+          else
+          {
+            get_selected_element(data_runtime_id);
+          }
         }
-        else
+      }
+      else
       {
         views[id].update();
       }
-     // }
     }
   }
+
+
 
   var onHideView = function(msg)
   {

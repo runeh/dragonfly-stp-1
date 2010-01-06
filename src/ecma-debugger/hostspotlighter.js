@@ -500,10 +500,10 @@ cls.EcmascriptDebugger["5.0"].Hostspotlighter = function()
   this.spotlight = function(node_id, scroll_into_view, type)
   {
     spotlight_clear_timeouts.clear();
-    if( arguments.join() != last_spotlight_commands )
+    var join = Array.prototype.join;
+    if( join.call(arguments) != last_spotlight_commands )
     {
-      last_spotlight_commands = arguments.join();
-
+      last_spotlight_commands = join.call(arguments);
       services['ecmascript-debugger'].requestSpotlightObjects(0,
         [[get_command(node_id, scroll_into_view, type || "default")].concat(
             settings.dom.get('lock-selecked-elements') && 

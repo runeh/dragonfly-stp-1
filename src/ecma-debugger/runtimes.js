@@ -232,6 +232,8 @@ cls.EcmascriptDebugger["5.0"].Runtimes = function()
     j = 0;
     var cur = '';
     var runtime = null;
+    var host_tabs_update_active_tab = false;
+    var host_tabs_set_active_tab = 0;
 
       // with the createAllRuntimes call and the runtime-started event
       // it can happen that a runtime get parsed twice
@@ -300,7 +302,7 @@ cls.EcmascriptDebugger["5.0"].Runtimes = function()
       if( runtime.window_id == __old_selected_window )
       {
         self.setActiveWindowId(__old_selected_window);
-        host_tabs.setActiveTab(__old_selected_window);
+        host_tabs_set_active_tab = __old_selected_window;
         __old_selected_window = '';
       }
       else
@@ -321,7 +323,7 @@ cls.EcmascriptDebugger["5.0"].Runtimes = function()
       if( runtime.window_id == __selected_window ||
             runtime.opener_window_id == __selected_window )
       {
-        host_tabs.updateActiveTab();
+        host_tabs_update_active_tab = true;
       }
       if(runtime.is_top)
       {
@@ -330,10 +332,15 @@ cls.EcmascriptDebugger["5.0"].Runtimes = function()
         window['cst-selects']['cmd-runtime-select'].updateElement();
       }
     }
+    if(host_tabs_set_active_tab)
+    {
+      host_tabs.setActiveTab(host_tabs_set_active_tab);
+    }
+    if(host_tabs_update_active_tab)
+    {
+      host_tabs.updateActiveTab();
+    }
     
-
-    
-
   }
   
   var __scripts = {};
