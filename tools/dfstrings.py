@@ -10,7 +10,7 @@ _js_concatere = re.compile("""\s*?['"](.*)['"]""")
 _po_tpl="""%(jsname)s=-1
 %(jsname)s.caption="%(msgstr)s"
 %(jsname)s.scope="dragonfly"
-%(jsname)s.description="%(desc)s
+%(jsname)s.description="%(desc)s"
 """
 
 def _db_block_reader(path):
@@ -130,8 +130,7 @@ def get_db_strings(path):
 
 def get_po_strings(path):
     """polib does the heavy lifting in parsing, but we need to extract stuff
-    from comments etc. Also, because some genious decided that a po parsing
-    library shouldn't return unicode objects, we do that coversion for them."""
+    from comments etc."""
     pofile = polib.pofile(path)
     ret = []
     for e in pofile:
@@ -139,11 +138,11 @@ def get_po_strings(path):
         cur = {
             "desc": u"",
             "jsname": e.occurrences[0][0].decode(e.encoding),
-            "msgstr": (e.msgstr or e.msgid[e.msgid.index("::")+2:]).replace("\n", "\\n").decode(e.encoding),
+            "msgstr": (e.msgstr or e.msgid[e.msgid.index("::")+2:]).replace("\n", "\\n"),
             "scope": []
         }
         if e.comment:
-            lines = set([l.decode(e.encoding) for l in e.comment.split("\n")])
+            lines = set([l for l in e.comment.split("\n")])
             commentlines = set([l[7:] for l in lines if l.startswith("Scope: ")])
             cur["scope"] = ",".join(commentlines).split(",")
             lines = lines - commentlines
@@ -168,11 +167,19 @@ def get_db_version(path):
     for line in fp:
         if line.startswith("@dbversion"): return line.strip()[11:]
     return "unknown"
+
 def get_strings_with_bad_escaping(strings):
+    """Find strings that contain quotes that are not escaped
+    The string 'hello "world"' is not allowed, the string
+    'hello \\"world\\"' is fine, since the string will remain properly
+    escaped when stuck into a js file
+    """
     quotere = re.compile(r"[^\\]\"")
     return [e for e in strings if quotere.findall(e)]
 
 def get_strings_with_bad_format(strings):
+    """Finds strings where the "s" is missing in replacement tokens, such
+    as "%(foo)s" has been changed to "%(foo)" """
     formatre = re.compile(r"%\(.*?\)[^s]")
     return [e for e in strings if formatre.findall(e)]
 
