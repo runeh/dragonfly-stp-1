@@ -33,8 +33,8 @@ window.HTTPLoggerData = new function()
     this.getLog = function()
     {
         return requestList;
-    }
-    
+    };
+
     /**
      * Get a specific request
      * @argument {string} id the id of the request
@@ -44,8 +44,8 @@ window.HTTPLoggerData = new function()
     {
         if (id in requestMap) { return requestMap[id] }
         else { return null }
-    }
-    
+    };
+
     /**
      * Clear the log data
      *
@@ -56,18 +56,18 @@ window.HTTPLoggerData = new function()
         requestMap = {};
         selectedRequestId = null;
         _updateViews();
-    }
-    
+    };
+
     this.clearLogAllButLast = function()
     {
         if (requestList.length) {
             var r = requestList.pop();
             requestList = [r];
-            requestMap = {}
+            requestMap = {};
             requestMap[r.id] = r;
         }
         _updateViews();
-    }
+    };
 
     /**
      * Add a request to the log
@@ -77,14 +77,14 @@ window.HTTPLoggerData = new function()
         var r = { id:request["request-id"],
                   "request": request,
                   response:null, duration: null
-                }
+                };
 
         requestList.push(r);
         requestMap[r.id] = r;
         lastModifiedRequestId = r.id;
         _updateViews();
-    }
-    
+    };
+
     /**
      * Add a response object to an existing request
      * fixme: now we silently ignore repsonses to non-exstant requests
@@ -106,8 +106,8 @@ window.HTTPLoggerData = new function()
             lastModifiedRequestId = r.id;
             _updateViews();
         }
-    }
-    
+    };
+
     /**
      * Set the currently selected request, that is, the request that is being
      * inspected
@@ -116,8 +116,8 @@ window.HTTPLoggerData = new function()
     {
         selectedRequestId = id;
         _updateViews();
-    }
-    
+    };
+
     /**
      * Clear the selected request
      */
@@ -125,8 +125,8 @@ window.HTTPLoggerData = new function()
     {
         selectedRequestId = null;
         _updateViews();
-    }
-    
+    };
+
     /**
      * Get the selected request
      */
@@ -140,7 +140,7 @@ window.HTTPLoggerData = new function()
         {
             return null;
         }
-    }    
+    };
 
     /**
      * Get the ID of the selected request
@@ -148,12 +148,12 @@ window.HTTPLoggerData = new function()
     this.getSelectedRequestId = function()
     {
         return selectedRequestId;
-    }
-    
+    };
+
     this.getLastModifiedRequestId = function()
     {
         return lastModifiedRequestId;
-    }
+    };
 
     /**
      * Event listener for the active-tab msg. If the the top runtime id
@@ -170,7 +170,7 @@ window.HTTPLoggerData = new function()
         } else {
             //All is well
         }
-    }
+    };
 
     /**
      * Update all views that use this as a data source
@@ -181,7 +181,7 @@ window.HTTPLoggerData = new function()
         {
             if (e in window.views) { window.views[e].update() }
         }
-    }
+    };
 
 }
 
