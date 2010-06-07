@@ -10,7 +10,7 @@ window.app.builders.EcmascriptDebugger["6.0"] = function(service)
 {
   // see diff to %.0 version: hg diff -c 9d4f82a72900
   var namespace = cls.EcmascriptDebugger && cls.EcmascriptDebugger["6.0"];
-  var service_interface = window.app.helpers.implement_service(namespace);
+  var service_interface = window.services['ecmascript-debugger'];
 
   const NAME = 0, ID = 1, VIEWS = 2;
 
