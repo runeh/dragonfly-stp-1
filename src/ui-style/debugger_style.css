@@ -512,6 +512,10 @@ examine-objects
 }
 examine-objects examine-objects
 {
+  background: transparent url('../ui-images/dom-tree-style.gif') scroll repeat-y 5px 0;
+}
+examine-objects examine-objects
+{
   padding: 0 0 0 16px;
 }
 examine-objects key 
