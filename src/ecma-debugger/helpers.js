@@ -176,6 +176,24 @@ window.cls.Helpers = function()
 
   this.service_class_name = window.app.helpers.dash_to_class_name;
 
+  this.copy_array = function copy_array(item)
+  {
+    if (Array.isArray(item))
+    {
+      return item.map(copy_array);
+    }
+    else
+    {
+      return item;
+    }
+  };
+
+  if (!Array.isArray) {
+    Array.isArray = function(obj) {
+      return Object.prototype.toString.call(o) == "[object Array]";
+    };
+  }
+
   document.addEventListener('keypress', keypressListener, true);
 
 }
