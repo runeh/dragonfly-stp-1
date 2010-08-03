@@ -83,6 +83,7 @@ cls.Stylesheets = function()
   OVERWRITTEN_LIST = 4,
   SEARCH_LIST = 10,
   HAS_MATCHING_SEARCH_PROPS = 11,
+  DISABLED_LIST = 12,
 
   // new names of the scope messages
   COMPUTED_STYLE_LIST = 0,
@@ -146,7 +147,8 @@ cls.Stylesheets = function()
     'border-style': 1,
     'border-color': 1,
     'background': 1,
-    'outline': 1
+    'outline': 1,
+    'overflow': 1
   };
 
   var special_default_values = {};
@@ -468,8 +470,6 @@ cls.Stylesheets = function()
 
   prettyPrintRule[COMMON] = function(rule, do_shortcuts, search_active, is_style_sheet)
   {
-    // TODO is creating shorthands a good idea?
-
     const
     HEADER = 0,
     INDEX_LIST = is_style_sheet && 3 || 1,
@@ -534,9 +534,6 @@ cls.Stylesheets = function()
       }
       else
       {
-        // css inspector does not shorthand properties
-        // perhaps later
-        // protocol-4: overwrittenlist is now the STATUS, the meaning is inverted, 1 means applied
         if (overwrittenlist && overwrittenlist[i])
         {
           ret += (ret ? MARKUP_PROP_NL : MARKUP_EMPTY) +
@@ -564,6 +561,20 @@ cls.Stylesheets = function()
       }
     }
     return ret;
+  };
+
+  this.create_declaration = function create_declaration(prop, value, is_important, rule_id, is_disabled, origin)
+  {
+    return (!(origin == ORIGIN_USER_AGENT || rule_id == undefined) ? "<input type='checkbox'" +
+                 " title='" + (is_disabled ? "Enable" : "Disable") + "'" +
+                 " class='enable-disable'" +
+                 (!is_disabled ? " checked='checked'" : "") +
+                 " handler='enable-disable'" +
+                 " data-property='" + prop + "'" +
+                 " data-rule-id='" + rule_id + "'>"
+               : "") +
+           "<key>" + prop + "</key>: " + // TODO: rename "key" to "property"
+           "<value>" + helpers.escapeTextHtml(value) + (is_important ? MARKUP_IMPORTANT : "") + "</value>;";
   };
 
   /* to print the stylesheets */
@@ -769,6 +780,64 @@ cls.Stylesheets = function()
 
   var prettyPrintStyleDec = [];
 
+  var prettyPrintRuleInInspector = function prettyPrintRuleInInspector(rule, do_shortcuts, search_active)
+  {
+    const
+    HEADER = 0,
+    INDEX_LIST = 1,
+    VALUE_LIST = 2,
+    PROPERTY_LIST = 3,
+    VALUE = 0,
+    PRIORITY = 1,
+    STATUS = 2;
+
+    var ret = '',
+    index_list = rule[INDEX_LIST] || [], // the built-in proxy returns empty repeated values as null
+    value_list = rule[VALUE_LIST],
+    priority_list = rule[PROPERTY_LIST],
+    overwritten_list = rule[OVERWRITTEN_LIST] || [],
+    search_list = rule[SEARCH_LIST] || [],
+    disabled_list = rule[DISABLED_LIST] || [],
+    prop_index = 0,
+    index = 0;
+
+    // Create an array of [prop, prop_index] for sorting
+    var properties = index_list.map(function(index) {
+      return [__indexMap[index], index];
+    });
+
+    // Sort in alphabetical order
+    properties.sort(function(a, b) {
+      return a[0] > b[0] ? 1 : -1; // The same property can never happen
+    });
+
+    var length = index_list.length;
+    for (var i = 0; i < length; i++)
+    {
+      prop_index = properties[i][1];
+      index = index_list.indexOf(prop_index);
+
+      if (search_active && !search_list[index])
+      {
+        continue;
+      }
+
+      ret += (ret ? MARKUP_PROP_NL : MARKUP_EMPTY) +
+              INDENT +
+              // TODO: rename "property" to "declaration"
+              "<property class='" + (overwritten_list[index] ? "" : "overwritten") +
+                                    (disabled_list[index] ? " disabled" : "") + "'>" +
+                self.create_declaration(__indexMap[prop_index],
+                                        value_list[index],
+                                        priority_list[index],
+                                        rule[RULE_ID],
+                                        disabled_list[index],
+                                        rule[ORIGIN]) +
+              "</property>";
+    }
+    return ret;
+  }
+
   prettyPrintStyleDec[ORIGIN_USER_AGENT] =
   function(rt_id, element_name, style_dec, search_active)
   {
@@ -778,7 +847,7 @@ cls.Stylesheets = function()
               "<stylesheet-link class='pseudo'>default values</stylesheet-link>" +
         "<selector>" + element_name + "</selector>" +
         " {\n" +
-            prettyPrintRule[COMMON](style_dec, false, search_active) +
+            prettyPrintRuleInInspector(style_dec, false, search_active) +
         "\n}</rule>";
     }
     return "";
@@ -793,7 +862,7 @@ cls.Stylesheets = function()
               "<stylesheet-link class='pseudo'>local user stylesheet</stylesheet-link>" +
         "<selector>" + helpers.escapeTextHtml(style_dec[SELECTOR]) + "</selector>" +
         " {\n" +
-            prettyPrintRule[COMMON](style_dec, false, search_active) +
+            prettyPrintRuleInInspector(style_dec, false, search_active) +
         "\n}</rule>";
     }
     return "";
@@ -818,7 +887,7 @@ cls.Stylesheets = function()
           "</stylesheet-link>" +
           "<selector>" + helpers.escapeTextHtml(style_dec[SELECTOR]) + "</selector>" +
           " {\n" +
-              prettyPrintRule[COMMON](style_dec, false, search_active) +
+              prettyPrintRuleInInspector(style_dec, false, search_active) +
           "\n}</rule>";
       }
     }
@@ -839,7 +908,7 @@ cls.Stylesheets = function()
       return "<rule>" +
         "<inline-style>element.style</inline-style>" +
         " {\n" +
-            prettyPrintRule[COMMON](style_dec, false, search_active) +
+            prettyPrintRuleInInspector(style_dec, false, search_active) +
         "\n}</rule>";
     }
     return "";
